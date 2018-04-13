@@ -36,15 +36,9 @@ def predict_owners(dataset_ddf, trained_model):
 
 def LDA_dataset_preparation(pet_owners_ddf):
     """ Collapse all the messages from owners of same pet in a single document"""
-    # corpus = pet_owners_ddf.groupby(['predict_dog_owner','predict_cat_owner']). \
-    #     agg(collect_list('words').alias('words')). \
-    #     withColumn('words', flattenUdf('words')). \
-    #     where('(predict_dog_owner * predict_cat_owner) = 0'). \
-    #     selectExpr('words',
-    #                '(CASE WHEN predict_dog_owner=1 THEN 1 '
-    #                'WHEN predict_cat_owner=1 THEN 2 '
-    #                'ELSE 0 END) AS pet_index')
-    corpus = pet_owners_ddf. \
+    corpus = pet_owners_ddf.groupby(['predict_dog_owner','predict_cat_owner']). \
+        agg(collect_list('words').alias('words')). \
+        withColumn('words', flattenUdf('words')). \
         where('(predict_dog_owner * predict_cat_owner) = 0'). \
         selectExpr('words',
                    '(CASE WHEN predict_dog_owner=1 THEN 1 '

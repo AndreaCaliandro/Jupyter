@@ -13,7 +13,7 @@ spark=SparkSession.builder.appName('cat_and_dog').getOrCreate()
 sc = spark.sparkContext
 sc.setLogLevel("ERROR")
 
-# path = '/Users/andreacaliandro/projects/Jupyter/HomeAssignments/TubularLab/data/animals_comments.csv'
+
 path = './data/animals_comments.csv'
 
 
@@ -63,23 +63,23 @@ if __name__ == '__main__':
         persist(StorageLevel.MEMORY_AND_DISK)
     dog_ddf = predict_owners(predictable_ddf, dog_clf)
     cat_ddf = predict_owners(predictable_ddf, cat_clf)
-    pet_owners_ddf = dog_ddf.join(cat_ddf, 'userid'). \
+    pet_owners_ddf = dog_ddf.join(cat_ddf, 'userid', 'inner'). \
         select(dog_ddf['userid'],
                dog_ddf['words'],
                dog_ddf['predict_dog_owner'],
                cat_ddf['predict_cat_owner'])
-    pet_owners_ddf.show()
+    print pet_owners_ddf.count()
 
     # Step 4: Extract Insights About Cat And Dog Owners
     # Topic extraction with LDA
-    docs_ddf = LDA_dataset_preparation(pet_owners_ddf.limit(1000)). \
+    docs_ddf = LDA_dataset_preparation(pet_owners_ddf.limit(20000)). \
         persist(StorageLevel.DISK_ONLY)
     # docs_ddf.show()
-    topics = TopicExtraction(docs_ddf, topic_num=10)
+    topics = TopicExtraction(docs_ddf, topic_num=20)
     topics.process()
 
     # Step 5: Identify Creators With Cat And Dog Owners In The Audience
-    creators_ddf = dataset_ddf.join(pet_owners_ddf, 'userid'). \
+    creators_ddf = dataset_ddf.join(pet_owners_ddf, 'userid', 'inner'). \
         select('creator_name',
                pet_owners_ddf['userid'],
                'predict_dog_owner',
@@ -92,13 +92,13 @@ if __name__ == '__main__':
                    'cat_count',
                    'dog_count*dog_count AS dog_count2',
                    'cat_count*cat_count AS cat_count2')
-    creators_ddf.show()
 
     dog_m, dog2, cat_m, cat2 = creators_ddf.groupby().avg('dog_count', 'dog_count2',
                                                           'cat_count', 'cat_count2').collect()[0]
     ranking_ddf = creators_ddf. \
         withColumn('dog_significance', significance_udf(dog_m, dog2)(col('dog_count'))). \
-        withColumn('cat_significance', significance_udf(cat_m, cat2)(col('cat_count')))
+        withColumn('cat_significance', significance_udf(cat_m, cat2)(col('cat_count'))). \
+        persist(StorageLevel.MEMORY_AND_DISK)
 
     print('Top 10 creators with higher number of dog owners')
     ranking_ddf.select('creator_name',
